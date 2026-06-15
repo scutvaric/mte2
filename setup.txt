@@ -1,2 +1,6 @@
-disable bracketed paste mode in your terminal: printf '\e[?2004l'
-Auto-completion for kubectl/oc: bashsource <(kubectl completion bash)
+disable bracketed paste mode in your terminal: 
+echo "echo -e '\e[?2004l'" >> ~/.bashrc
+source ~/.bashrc
+
+Auto-completion for kubectl/oc: 
+source <(kubectl completion bash)
