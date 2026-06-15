@@ -302,7 +302,7 @@ kubectl delete pod web-abc123       # ReplicaSet creates a new one immediately
 
 **Q16: Write StatefulSet for redis:7 with 3 replicas plus headless Service. Show pod names and DNS.**
 Step 1 — create the file:
-bashnano redis-statefulset.yaml
+nano redis-statefulset.yaml
 
 Step 2 — paste this YAML (from Q16 in your answer document):
 
