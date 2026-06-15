@@ -301,6 +301,10 @@ kubectl delete pod bare-pod         # gone forever
 kubectl delete pod web-abc123       # ReplicaSet creates a new one immediately
 
 **Q16: Write StatefulSet for redis:7 with 3 replicas plus headless Service. Show pod names and DNS.**
+Step 1 — create the file:
+bashnano redis-statefulset.yaml
+
+Step 2 — paste this YAML (from Q16 in your answer document):
 
 # First create the headless service
 
@@ -366,21 +370,22 @@ spec:
 
         - containerPort: 6379
 
-Pod names are predictable:
+Step 3 — apply it:
+kubectl apply -f redis-statefulset.yaml
 
-- redis-0
+Step 4 — verify:
+kubectl get pods -l app=redis
+kubectl get statefulset
 
-- redis-1
 
-- redis-2
+Show pod names:
+kubectl get pods -l app=redis
 
-DNS records for each pod:
+Show DNS:
+kubectl run dns-test --rm -it \
+  --image=docker.io/library/busybox:latest \
+  -- sh -c "nslookup redis-0.redis && nslookup redis-1.redis && nslookup redis-2.redis"
 
-- redis-0.redis.default.svc.cluster.local
-
-- redis-1.redis.default.svc.cluster.local
-
-- redis-2.redis.default.svc.cluster.local
 
 **Q17: Create a DaemonSet running busybox. Explain why exactly one pod runs per node.**
 
