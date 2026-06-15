@@ -1,6 +1,7 @@
 disable bracketed paste mode in your terminal: 
 echo "echo -e '\e[?2004l'" >> ~/.bashrc
 source ~/.bashrc
+bind 'set enable-bracketed-paste off'
 
 Auto-completion for kubectl/oc: 
 source <(kubectl completion bash)
