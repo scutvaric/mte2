@@ -858,31 +858,94 @@ This proves initContainer finished BEFORE main container started ✅
 
 **Q29: Set readOnly:true on a volume mount and prove writes are rejected.**
 
-volumeMounts:
+nano readonly-pod.yaml
 
-- name: config
+#Contents:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: readonly-pod
+spec:
+  volumes:
+  - name: config
+    configMap:
+      name: app-config
+  containers:
+  - name: app
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
+    volumeMounts:
+    - name: config
+      mountPath: /etc/config
+      readOnly: true
 
-  mountPath: /etc/config
+kubectl apply -f readonly-pod.yaml
 
-  readOnly: true
+Prove writes are rejected:
+kubectl exec readonly-pod -- touch /etc/config/test
+Output:
+touch: /etc/config/test: Read-only file system
+✅ That's your proof.
 
-Test it:
+Also show you can still READ:
+kubectl exec readonly-pod -- cat /etc/config/database.host
+Output: mysql ✅
 
-kubectl exec POD_NAME -- touch /etc/config/test
-
-Output: touch: /etc/config/test: Read-only file system
 
 **Q30: Set sizeLimit on emptyDir. Explain what happens if container exceeds it.**
 
-volumes:
+=== STEP 1 - Create the file ===
 
-- name: temp
+nano sizelimit-pod.yaml
 
-  emptyDir:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sizelimit-pod
+spec:
+  volumes:
+  - name: temp
+    emptyDir:
+      sizeLimit: 100Mi
+  containers:
+  - name: app
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
+    volumeMounts:
+    - name: temp
+      mountPath: /tmp/data
 
-    sizeLimit: 100Mi
+=== STEP 2 - Apply it ===
 
-**→ **If the container writes more than 100Mi to this volume, Kubernetes evicts (kills) the pod. The pod gets restarted by the Deployment/ReplicaSet.
+kubectl apply -f sizelimit-pod.yaml
+
+=== STEP 3 - Verify sizeLimit is set ===
+
+kubectl describe pod sizelimit-pod
+
+Look for:
+Volumes:
+  temp:
+    Type: EmptyDir
+    SizeLimit: 100Mi
+
+=== STEP 4 - Prove it works by writing data that exceeds the limit ===
+
+kubectl exec sizelimit-pod -- dd if=/dev/zero of=/tmp/data/bigfile bs=1M count=110
+
+This writes 110MB which exceeds the 100Mi limit.
+
+=== STEP 5 - Watch pod get evicted ===
+
+kubectl get pods sizelimit-pod
+
+You will see:
+sizelimit-pod   0/1   Evicted   0   2m
+
+=== EXPLANATION ===
+
+If the container writes more than 100Mi to this volume, Kubernetes evicts (kills) the pod.
+The pod gets restarted by the Deployment/ReplicaSet.
 
 **Q31: Create generic Secret from literals. Show values are base64-encoded, not encrypted.**
 
