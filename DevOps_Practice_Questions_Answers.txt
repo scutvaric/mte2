@@ -1,3 +1,21 @@
+most likely commands they'll ask you to run inside a Job or CronJob:
+Simple output commands:
+bashdate                          # print current date/time
+echo "hello"                  # print text
+hostname                      # print pod name
+whoami                        # print current user
+Math/computation:
+bash/bin/sh -c 'echo $((2+2))'   # simple math
+/bin/sh -c 'expr 10 + 5'     # addition
+System info:
+bash/bin/sh -c 'echo $(date) - $(hostname)'  # date + pod name
+cat /etc/os-release                       # OS info
+uptime                                    # system uptime
+Multiple commands with &&:
+bash/bin/sh -c 'date && echo done'
+/bin/sh -c 'echo start && sleep 5 && echo finished'
+
+
 **Intro to DevOps**
 
 **Practice Questions — Complete Answers**
