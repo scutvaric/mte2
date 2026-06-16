@@ -427,6 +427,22 @@ spec:
 
         command: ['sh', '-c', 'while true; do echo running; sleep 60; done']
 
+Step 1 — create the file:
+nano busybox-daemonset.yaml
+Step 2 — paste the YAML from above
+Save with Ctrl+O then Ctrl+X
+Step 3 — apply it:
+kubectl apply -f busybox-daemonset.yaml
+Step 4 — verify:
+# Show the daemonset
+kubectl get daemonset
+
+# Show the pod it created
+kubectl get pods -l app=busybox-agent -o wide
+
+Prove it's on every node:
+bashkubectl get pods -l app=busybox-agent -o wide
+
 **Q18: Create a Job using busybox that computes once and completes. Show COMPLETIONS and logs.**
 
 kubectl create job compute-job \
