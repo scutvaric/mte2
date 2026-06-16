@@ -654,9 +654,9 @@ volumeMounts:
 
 - name: config
 
-  mountPath: /etc/nginx/nginx.conf
+  mountPath: /etc/config/database.host
 
-  subPath: nginx.conf    # only mount this one key
+  subPath: database.host    # only mount this one key
 
 #Then reapply the yaml file:
 # Delete the old pod first
