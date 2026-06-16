@@ -800,49 +800,61 @@ kubectl get pvc   # PVCs still exist!
 
 **→ **An initContainer runs BEFORE the main container starts. It can set up files, wait for services, or do any setup work.
 
+Step 1 — Create the YAML file:
+nano init-pod.yaml
+
+Paste this:
 apiVersion: v1
-
 kind: Pod
-
 metadata:
-
   name: init-pod
-
 spec:
-
   volumes:
-
   - name: shared
-
     emptyDir: {}
-
   initContainers:
-
   - name: setup
-
     image: docker.io/library/busybox:latest
-
     command: ['sh','-c','echo pre-loaded data > /data/file.txt']
-
     volumeMounts:
-
     - name: shared
-
       mountPath: /data
-
   containers:
-
   - name: main
-
     image: docker.io/library/busybox:latest
-
     command: ['sh','-c','cat /data/file.txt && sleep 3600']
-
     volumeMounts:
-
     - name: shared
-
       mountPath: /data
+
+Step 2 — Apply it:
+kubectl apply -f init-pod.yaml
+
+Step 3 — Watch init container run first:
+kubectl get pods init-pod
+You'll briefly see Init:0/1 status — proving initContainer ran before main container.
+
+Step 4 — Prove data was pre-populated:
+# Read the file the initContainer created
+kubectl exec init-pod -- cat /data/file.txt
+
+Output: pre-loaded data ✅
+
+Step 5 — Check logs to prove main container read it:
+kubectl logs init-pod -c main
+
+Output: pre-loaded data ✅
+
+Step 6 — Describe pod to show init container completed:
+kubectl describe pod init-pod
+
+Look for:
+Init Containers:
+  setup:
+    State: Terminated
+    Reason: Completed
+
+This proves initContainer finished BEFORE main container started ✅
 
 **Q29: Set readOnly:true on a volume mount and prove writes are rejected.**
 
