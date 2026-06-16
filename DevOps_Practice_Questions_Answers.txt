@@ -665,6 +665,12 @@ kubectl delete pod config-pod
 # Then recreate with the updated YAML
 kubectl apply -f config-pod.yaml
 
+# Prove only ONE file exists at that path (not the whole directory)
+kubectl exec config-pod -- ls /etc/config/
+
+# Show the file contents
+kubectl exec config-pod -- cat /etc/config/database.host
+
 ⚠️ Caveat: When you update the ConfigMap, files mounted with subPath do NOT auto-update. The pod must be restarted to see changes. Files mounted WITHOUT subPath do auto-update (eventually).
 
 **Q26: Mount a Secret as volume and verify files contain decoded values with restrictive permissions.**
