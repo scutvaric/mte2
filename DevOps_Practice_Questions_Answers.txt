@@ -529,6 +529,10 @@ Deployment: all 3 pods start at roughly the same time
 ✅ Order matters for databases — the primary node (redis-0) must be ready before replicas (redis-1, redis-2) connect to it.
 
 **Q22: Create multi-container Pod sharing emptyDir — one writes, one reads. Prove it's shared.**
+# Create file
+nano multi-container.yaml
+
+# Copy content
 
 apiVersion: v1
 
@@ -571,6 +575,9 @@ spec:
     - name: shared
 
       mountPath: /shared
+
+# Run file
+kubectl apply -f multi-container.yaml
 
 Prove it's shared:
 
