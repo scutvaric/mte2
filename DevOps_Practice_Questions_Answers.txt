@@ -484,11 +484,6 @@ List Jobs it has spawned (the job spawns after 1 minute):
 
 kubectl get jobs -l job-name=date-printer 
 
-Or to test immediately without waiting, manually trigger a job:
-kubectl create job test-now --from=cronjob/date-printer
-Then check logs:
-kubectl logs job/test-now
-
 The format is 5 fields:
 * * * * *
 │ │ │ │ │
