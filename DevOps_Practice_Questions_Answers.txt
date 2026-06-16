@@ -382,10 +382,12 @@ Show pod names:
 kubectl get pods -l app=redis
 
 Show DNS:
-kubectl run dns-test --rm -it \
-  --image=docker.io/library/busybox:latest \
-  -- sh -c "nslookup redis-0.redis && nslookup redis-1.redis && nslookup redis-2.redis"
+# 3. Show per-pod DNS records exist (via endpoints)
+kubectl get service        # → service name = "redis"
+kubectl get pods -l app=redis -o wide   # → pod names = redis-0, redis-1, redis-2
+kubectl config view --minify | grep namespace  # → namespace = "default"
 
+DNS records follow the format POD-NAME.SERVICE-NAME.default.svc.cluster.local, so redis-0 is reachable at redis-0.redis.default.svc.cluster.local
 
 **Q17: Create a DaemonSet running busybox. Explain why exactly one pod runs per node.**
 
