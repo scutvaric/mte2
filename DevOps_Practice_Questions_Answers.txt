@@ -453,6 +453,13 @@ kubectl create job compute-job \
 
 kubectl get jobs
 
+What /bin/sh -c 'echo Result: $((2+2))' does:
+
+/bin/sh -c → opens a shell so you can run shell commands
+echo Result: → prints the word "Result:"
+$((2+2)) → shell arithmetic, calculates 2+2=4
+Together prints: Result: 4
+
 You'll see COMPLETIONS: 1/1 when done
 
 kubectl logs job/compute-job
