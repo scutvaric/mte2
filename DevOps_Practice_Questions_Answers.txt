@@ -513,7 +513,14 @@ kubectl logs job/test-run
 
 **→ **StatefulSet starts pods in order (0, 1, 2) and waits for each to be ready before starting the next. It terminates in REVERSE order (2, 1, 0). Deployment starts and stops all pods at the same time with no guaranteed order.
 
-kubectl get pods -w   # watch pods being created one by one
+# Delete the statefulset
+kubectl delete statefulset redis
+
+ # watch pods being created one by one
+kubectl get pods -w
+
+# Recreate in another terminal
+kubectl apply -f redis-statefulset.yaml
 
 StatefulSet: redis-0 starts → becomes Ready → redis-1 starts → becomes Ready → redis-2 starts
 
