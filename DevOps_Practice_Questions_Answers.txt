@@ -599,7 +599,8 @@ kubectl get pvc -A   # across all namespaces
 
 kubectl create configmap app-config --from-literal=database.host=mysql --from-literal=database.port=3306
 
-Create a pod that mounts it:
+
+Create a pod that mounts it nano config.yaml:
 
 apiVersion: v1
 
@@ -633,6 +634,9 @@ spec:
 
       mountPath: /etc/config
 
+#Then run the file
+kubectl appyl -f config.yaml
+
 Verify inside pod:
 
 kubectl exec config-pod -- ls /etc/config
@@ -645,6 +649,7 @@ Output: mysql
 
 **→ **subPath mounts just ONE key from a ConfigMap to a specific file path, without replacing the whole directory. Without subPath, mounting a ConfigMap replaces the entire directory.
 
+# in the file you created in q24, change volumeMounts to:
 volumeMounts:
 
 - name: config
@@ -652,6 +657,13 @@ volumeMounts:
   mountPath: /etc/nginx/nginx.conf
 
   subPath: nginx.conf    # only mount this one key
+
+#Then reapply the yaml file:
+# Delete the old pod first
+kubectl delete pod config-pod
+
+# Then recreate with the updated YAML
+kubectl apply -f config-pod.yaml
 
 ⚠️ Caveat: When you update the ConfigMap, files mounted with subPath do NOT auto-update. The pod must be restarted to see changes. Files mounted WITHOUT subPath do auto-update (eventually).
 
