@@ -15,6 +15,37 @@ Multiple commands with &&:
 bash/bin/sh -c 'date && echo done'
 /bin/sh -c 'echo start && sleep 5 && echo finished'
 
+DaemonSet
+Runs exactly ONE pod on EVERY node. If you add a new node, it automatically gets a pod. If a node is removed, that pod is gone.
+Use for: monitoring agents, log collectors — things that need to run everywhere.
+Your VM has 1 node → you get 1 pod.
+DaemonSet → NO imperative command, must write YAML
+
+StatefulSet
+Like a Deployment but each pod has its OWN identity and OWN storage. Pods get predictable names (redis-0, redis-1, redis-2) and start/stop in order.
+Use for: databases — things that need to remember who they are and keep their own data.
+StatefulSet → NO imperative command, must write YAML
+
+Job
+Runs a pod ONCE, does its task, then stops. Kubernetes considers it done when the pod exits successfully.
+Use for: one-time tasks like database migrations, calculations, backups.
+Unlike a Deployment — it doesn't restart forever, it just completes.
+Job → kubectl create job ✅
+
+CronJob
+Same as a Job but runs on a schedule (every minute, every day, every Monday etc). Creates a new Job each time the schedule triggers.
+Use for: recurring tasks like sending reports, cleaning up old files.
+CronJob → kubectl create cronjob ✅
+
+PVC (PersistentVolumeClaim)
+A request for storage. You say "I need 1GB of storage" and Kubernetes finds it and gives it to you. The data survives even if the pod is deleted.
+Use for: anything that needs to save data permanently — databases, file uploads.
+
+
+Deployment
+A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state. A Deployment provides declarative updates for Pods and ReplicaSets. You describe a desired state in a Deployment, and the Deployment Controller changes the actual state to the desired state at a controlled rate. You can define Deployments to create new ReplicaSets, or to remove existing Deployments and adopt all their resources with new Deployments.
+
+Deployment → kubectl create deployment ✅ (has imperative command)
 
 **Intro to DevOps**
 
