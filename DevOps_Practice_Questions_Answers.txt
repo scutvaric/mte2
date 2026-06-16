@@ -480,9 +480,14 @@ Suspend it (stops future runs, doesn't delete current):
 
 kubectl patch cronjob date-printer -p '{"spec":{"suspend":true}}'
 
-List Jobs it has spawned:
+List Jobs it has spawned (the job spawns after 1 minute):
 
-kubectl get jobs -l job-name=date-printer
+kubectl get jobs -l job-name=date-printer 
+
+Or to test immediately without waiting, manually trigger a job:
+kubectl create job test-now --from=cronjob/date-printer
+Then check logs:
+kubectl logs job/test-now
 
 The format is 5 fields:
 * * * * *
