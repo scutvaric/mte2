@@ -486,6 +486,23 @@ List Jobs it has spawned:
 
 kubectl get jobs -l job-name=date-printer
 
+The format is 5 fields:
+* * * * *
+│ │ │ │ │
+│ │ │ │ └── Day of week (0-7, 0=Sunday)
+│ │ │ └──── Month (1-12)
+│ │ └────── Day of month (1-31)
+│ └──────── Hour (0-23)
+└────────── Minute (0-59)
+
+Common examples:
+*/1 * * * *    → every 1 minute
+*/5 * * * *    → every 5 minutes
+0 * * * *      → every hour (at minute 0)
+0 9 * * *      → every day at 9:00am
+0 9 * * 1      → every Monday at 9:00am
+0 0 1 * *      → first day of every month at midnight
+
 **Q20: Manually run a Job from an existing CronJob to test on demand.**
 
 kubectl create job test-run --from=cronjob/date-printer
