@@ -38,13 +38,7 @@ kubectl get deployment web -o yaml > web-deployment.yaml
 
 **→ **You need to create an image-pull Secret. This stores your DockerHub credentials so Kubernetes can pull private images without hitting rate limits.
 
-kubectl create secret docker-registry dockerhub-secret \
-
-  --docker-username=YOUR_USERNAME \
-
-  --docker-password=YOUR_PASSWORD \
-
-  --docker-email=YOUR_EMAIL
+kubectl create secret docker-registry dockerhub-secret --docker-username=YOUR_USERNAME --docker-password=YOUR_PASSWORD --docker-email=YOUR_EMAIL
 
 Then reference it in your deployment YAML:
 
@@ -166,11 +160,7 @@ kubectl patch deployment web -p '{"spec":{"strategy":{"type":"Recreate"}}}'
 
 **→ **Requests = minimum guaranteed. Limits = maximum allowed. Without these, a pod can use all node resources.
 
-kubectl set resources deployment/web \
-
-  --requests=cpu=100m,memory=128Mi \
-
-  --limits=cpu=500m,memory=256Mi
+kubectl set resources deployment/web --requests=cpu=100m,memory=128Mi --limits=cpu=500m,memory=256Mi
 
 Verify it worked:
 
@@ -463,11 +453,7 @@ bashkubectl get pods -l app=busybox-agent -o wide
 
 **Q18: Create a Job using busybox that computes once and completes. Show COMPLETIONS and logs.**
 
-kubectl create job compute-job \
-
-  --image=docker.io/library/busybox:latest \
-
-  -- /bin/sh -c 'echo Result: $((2+2))'
+kubectl create job compute-job --image=docker.io/library/busybox:latest -- /bin/sh -c 'echo Result: $((2+2))'
 
 kubectl get jobs
 
@@ -488,13 +474,7 @@ Output: Result: 4
 
 **Q19: Create a CronJob that prints date every minute. Show how to suspend it and list spawned Jobs.**
 
-kubectl create cronjob date-printer \
-
-  --image=docker.io/library/busybox:latest \
-
-  --schedule='*/1 * * * *' \
-
-  -- date
+kubectl create cronjob date-printer --image=docker.io/library/busybox:latest --schedule='*/1 * * * *' -- date
 
 Suspend it (stops future runs, doesn't delete current):
 
@@ -603,11 +583,7 @@ kubectl get pvc -A   # across all namespaces
 
 **Q24: Mount ConfigMap as volume so each key becomes a file. Verify contents inside pod.**
 
-kubectl create configmap app-config \
-
-  --from-literal=database.host=mysql \
-
-  --from-literal=database.port=3306
+kubectl create configmap app-config --from-literal=database.host=mysql --from-literal=database.port=3306
 
 Create a pod that mounts it:
 
@@ -667,11 +643,7 @@ volumeMounts:
 
 **Q26: Mount a Secret as volume and verify files contain decoded values with restrictive permissions.**
 
-kubectl create secret generic db-creds \
-
-  --from-literal=username=admin \
-
-  --from-literal=password=secret123
+kubectl create secret generic db-creds --from-literal=username=admin --from-literal=password=secret123
 
 apiVersion: v1
 
@@ -803,11 +775,7 @@ volumes:
 
 **Q31: Create generic Secret from literals. Show values are base64-encoded, not encrypted.**
 
-kubectl create secret generic db-secret \
-
-  --from-literal=username=admin \
-
-  --from-literal=password=mypassword
+kubectl create secret generic db-secret --from-literal=username=admin --from-literal=password=mypassword
 
 Show the stored values are base64:
 
@@ -825,11 +793,7 @@ Output: admin
 
 **Q32: Create Secret from files holding cert and key. Identify resulting keys.**
 
-kubectl create secret generic tls-files \
-
-  --from-file=cert.pem=/path/to/cert.pem \
-
-  --from-file=key.pem=/path/to/key.pem
+kubectl create secret generic tls-files --from-file=cert.pem=/path/to/cert.pem --from-file=key.pem=/path/to/key.pem
 
 **→ **The resulting keys inside the secret are exactly the filenames: cert.pem and key.pem
 
@@ -837,11 +801,7 @@ kubectl describe secret tls-files
 
 **Q33: Create kubernetes.io/tls typed Secret from cert/key. Where is it consumed?**
 
-kubectl create secret tls my-tls-secret \
-
-  --cert=/path/to/cert.pem \
-
-  --key=/path/to/key.pem
+kubectl create secret tls my-tls-secret --cert=/path/to/cert.pem --key=/path/to/key.pem
 
 **→ **TLS secrets are consumed by Ingress controllers and Routes to terminate HTTPS connections. The ingress/route reads the cert and key to handle SSL/TLS encryption on behalf of your app.
 
@@ -889,13 +849,7 @@ spec:
 
 **Q36: Create docker-registry Secret and reference via imagePullSecrets. When is it required?**
 
-kubectl create secret docker-registry my-registry-secret \
-
-  --docker-server=registry.example.com \
-
-  --docker-username=myuser \
-
-  --docker-password=mypassword
+kubectl create secret docker-registry my-registry-secret --docker-server=registry.example.com --docker-username=myuser --docker-password=mypassword
 
 Reference in pod spec:
 
@@ -915,13 +869,7 @@ spec:
 
 **Q37: Create Secret with several keys and selectively mount only one into a pod.**
 
-kubectl create secret generic multi-secret \
-
-  --from-literal=db_user=admin \
-
-  --from-literal=db_pass=secret \
-
-  --from-literal=api_key=xyz123
+kubectl create secret generic multi-secret --from-literal=db_user=admin --from-literal=db_pass=secret --from-literal=api_key=xyz123
 
 Mount only db_pass:
 
@@ -1199,9 +1147,7 @@ podman logs job
 
 **Fix: **
 
-podman run -d -p 8080:3306 --memory 512m \
-
-  -e MYSQL_ROOT_PASSWORD=pass docker.io/library/mysql
+podman run -d -p 8080:3306 --memory 512m -e MYSQL_ROOT_PASSWORD=pass docker.io/library/mysql
 
 **Q7: Two alpine containers, exec ping b fails — name resolution fails on default network.**
 
@@ -1319,11 +1265,7 @@ Fixed (clean up in the same RUN layer):
 
 FROM debian:12
 
-RUN apt-get update && \
-
-    apt-get install -y build-essential && \
-
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
 
 ✅ Always clean apt cache in the SAME RUN command. Doing it in a separate RUN doesn't help because the large layer is already created.
 
@@ -1461,11 +1403,7 @@ Common causes: wrong path (/health instead of /healthz), wrong port, app not sta
 
 Fix — adjust the probe to match the app:
 
-kubectl set probe deployment/NAME --readiness \
-
-  --get-url http://:8080/healthz \
-
-  --initial-delay-seconds 10
+kubectl set probe deployment/NAME --readiness --get-url http://:8080/healthz --initial-delay-seconds 10
 
 **Q25: A Service returns nothing. Diagnose Service/pod label mismatch using kubectl get endpoints.**
 
@@ -1683,11 +1621,7 @@ kubectl create configmap my-config --from-literal=missing-key=value
 
 Fix — copy the secret to the same namespace:
 
-kubectl get secret my-secret -n prod -o yaml | \
-
-  sed 's/namespace: prod/namespace: dev/' | \
-
-  kubectl apply -f -
+kubectl get secret my-secret -n prod -o yaml | sed 's/namespace: prod/namespace: dev/' | kubectl apply -f -
 
 **Q39: Rollout stuck with ProgressDeadlineExceeded.**
 
