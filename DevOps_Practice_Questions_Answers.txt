@@ -752,7 +752,43 @@ kubectl exec secret-pod -- ls -la /etc/secrets
 
 **→ **StatefulSet creates one PVC per pod automatically. When you DELETE the StatefulSet, the PVCs are NOT deleted — data is preserved. You must delete PVCs manually if you want to remove the data.
 
-kubectl get pvc   # see one per replica: data-redis-0, data-redis-1, data-redis-2
+Step 1 — Delete existing redis StatefulSet:
+kubectl delete statefulset redis
+
+Step 2 — Create new redis-statefulset.yaml with storage:
+yamlapiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+spec:
+  serviceName: redis
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: docker.io/library/redis:7
+        ports:
+        - containerPort: 6379
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Mi
+
+Step 3 — Apply and check:
+kubectl apply -f redis-statefulset.yaml
+kubectl get pvc
+
 
 kubectl delete statefulset redis
 
