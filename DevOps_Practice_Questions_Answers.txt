@@ -947,323 +947,639 @@ sizelimit-pod   0/1   Evicted   0   2m
 If the container writes more than 100Mi to this volume, Kubernetes evicts (kills) the pod.
 The pod gets restarted by the Deployment/ReplicaSet.
 
-**Q31: Create generic Secret from literals. Show values are base64-encoded, not encrypted.**
+Q31: Create generic Secret from literals. Show values are base64-encoded, not encrypted.
+
+=== STEP 1 - Create the secret ===
 
 kubectl create secret generic db-secret --from-literal=username=admin --from-literal=password=mypassword
 
-Show the stored values are base64:
+=== STEP 2 - Show stored values are base64 encoded ===
 
 kubectl get secret db-secret -o yaml
 
-You'll see: username: YWRtaW4=
+You will see:
+  username: YWRtaW4=
+  password: bXlwYXNzd29yZA==
 
-Decode it:
+=== STEP 3 - Decode it to prove it is NOT encrypted ===
 
 echo YWRtaW4= | base64 --decode
 
 Output: admin
 
-⚠️ Secrets are NOT encrypted — just base64 encoded. Anyone with access to the secret can decode it instantly. For real encryption, you need etcd encryption or a secrets manager like Vault.
+=== EXPLANATION ===
 
-**Q32: Create Secret from files holding cert and key. Identify resulting keys.**
+Secrets are NOT encrypted — just base64 encoded.
+Anyone with access to the secret can decode it instantly.
+For real encryption you need etcd encryption or a secrets manager like Vault.
 
-kubectl create secret generic tls-files --from-file=cert.pem=/path/to/cert.pem --from-file=key.pem=/path/to/key.pem
+================================================================================
 
-**→ **The resulting keys inside the secret are exactly the filenames: cert.pem and key.pem
+Q32: Create Secret from files holding cert and key. Identify resulting keys.
+
+=== STEP 1 - Create dummy cert and key files ===
+
+echo "fake-cert" > cert.pem
+echo "fake-key" > key.pem
+
+=== STEP 2 - Create secret from files ===
+
+kubectl create secret generic tls-files --from-file=cert.pem=cert.pem --from-file=key.pem=key.pem
+
+=== STEP 3 - Identify the resulting keys ===
 
 kubectl describe secret tls-files
 
-**Q33: Create kubernetes.io/tls typed Secret from cert/key. Where is it consumed?**
+=== EXPLANATION ===
 
-kubectl create secret tls my-tls-secret --cert=/path/to/cert.pem --key=/path/to/key.pem
+The resulting keys inside the secret are exactly the filenames: cert.pem and key.pem
+The key name = the filename you specified before the = sign.
 
-**→ **TLS secrets are consumed by Ingress controllers and Routes to terminate HTTPS connections. The ingress/route reads the cert and key to handle SSL/TLS encryption on behalf of your app.
+================================================================================
 
-**Q34: Mount a Secret as volume. Security trade-offs vs env vars.**
+Q33: Create kubernetes.io/tls typed Secret from cert/key. Where is it consumed?
+
+=== STEP 1 - Create dummy cert and key ===
+
+echo "fake-cert" > cert.pem
+echo "fake-key" > key.pem
+
+=== STEP 2 - Create TLS secret ===
+
+kubectl create secret tls my-tls-secret --cert=cert.pem --key=key.pem
+
+=== STEP 3 - Verify it ===
+
+kubectl describe secret my-tls-secret
+
+=== EXPLANATION ===
+
+TLS secrets are consumed by Ingress controllers and Routes to terminate HTTPS connections.
+The ingress/route reads the cert and key to handle SSL/TLS encryption on behalf of your app.
+Type is kubernetes.io/tls instead of Opaque.
+
+================================================================================
+
+Q34: Mount a Secret as volume. Security trade-offs vs env vars.
+
+=== STEP 1 - Create the pod YAML ===
+
+nano secret-volume-pod.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-volume-pod
+spec:
+  volumes:
+  - name: creds
+    secret:
+      secretName: db-secret
+  containers:
+  - name: app
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
+    volumeMounts:
+    - name: creds
+      mountPath: /etc/secrets
+
+=== STEP 2 - Apply it ===
+
+kubectl apply -f secret-volume-pod.yaml
+
+=== STEP 3 - Verify files exist ===
+
+kubectl exec secret-volume-pod -- ls /etc/secrets
+kubectl exec secret-volume-pod -- cat /etc/secrets/username
+
+=== EXPLANATION - Trade-offs ===
 
 Volume mount advantages:
-
 - Values are files — easier for apps that read config from files (like nginx)
-
-- Values auto-update when Secret changes (without pod restart)
-
-- You can set restrictive file permissions (chmod 0400)
+- Values auto-update when Secret changes without pod restart
+- You can set restrictive file permissions (defaultMode: 0400)
 
 Env var advantages:
-
 - Simpler to access in code (process.env.PASSWORD)
-
 - No file path needed
 
 Env var disadvantages:
-
 - More likely to accidentally leak in logs
-
 - Do NOT auto-update when Secret changes
+- Visible in kubectl describe pod
 
-- Visible in 'kubectl describe pod'
+================================================================================
 
-**Q35: Use envFrom with secretRef to load every key of a Secret as env vars at once.**
+Q35: Use envFrom with secretRef to load every key of a Secret as env vars at once.
 
+=== STEP 1 - Create the pod YAML ===
+
+nano envfrom-pod.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: envfrom-pod
 spec:
-
   containers:
-
   - name: app
-
-    image: myapp
-
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
     envFrom:
-
     - secretRef:
-
         name: db-secret
 
-**→ **Every key in db-secret becomes an environment variable in the container. If secret has username and password keys, the container gets USERNAME and PASSWORD env vars.
+=== STEP 2 - Apply it ===
 
-**Q36: Create docker-registry Secret and reference via imagePullSecrets. When is it required?**
+kubectl apply -f envfrom-pod.yaml
+
+=== STEP 3 - Verify all keys became env vars ===
+
+kubectl exec envfrom-pod -- env | grep -E "username|password"
+
+=== EXPLANATION ===
+
+Every key in db-secret becomes an environment variable in the container.
+If the secret has username and password keys, the container gets those as env vars automatically.
+No need to list each key individually — envFrom loads them all at once.
+
+================================================================================
+
+Q36: Create docker-registry Secret and reference via imagePullSecrets. When is it required?
+
+=== STEP 1 - Create the docker-registry secret ===
 
 kubectl create secret docker-registry my-registry-secret --docker-server=registry.example.com --docker-username=myuser --docker-password=mypassword
 
-Reference in pod spec:
+=== STEP 2 - Verify it was created ===
 
+kubectl get secret my-registry-secret
+kubectl describe secret my-registry-secret
+
+=== STEP 3 - Reference it in a pod/deployment ===
+
+nano pullsecret-pod.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pullsecret-pod
 spec:
-
   imagePullSecrets:
-
   - name: my-registry-secret
-
   containers:
-
   - name: app
-
     image: registry.example.com/myapp:latest
 
-**→ **Required when pulling from private registries (Quay.io private repos, AWS ECR, Google Container Registry, etc.) or when you've hit DockerHub's rate limit for anonymous pulls.
+=== EXPLANATION ===
 
-**Q37: Create Secret with several keys and selectively mount only one into a pod.**
+Required when:
+- Pulling from private registries (Quay.io private repos, AWS ECR, Google Container Registry)
+- You have hit DockerHub rate limit for anonymous pulls
+Without this secret Kubernetes cannot authenticate to the registry and gets ImagePullBackOff.
+
+================================================================================
+
+Q37: Create Secret with several keys and selectively mount only one into a pod.
+
+=== STEP 1 - Create secret with multiple keys ===
 
 kubectl create secret generic multi-secret --from-literal=db_user=admin --from-literal=db_pass=secret --from-literal=api_key=xyz123
 
-Mount only db_pass:
+=== STEP 2 - Create pod that mounts only one key ===
 
-volumes:
+nano selective-secret-pod.yaml
 
-- name: pass-only
+apiVersion: v1
+kind: Pod
+metadata:
+  name: selective-secret-pod
+spec:
+  volumes:
+  - name: pass-only
+    secret:
+      secretName: multi-secret
+      items:
+      - key: db_pass
+        path: password.txt
+  containers:
+  - name: app
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
+    volumeMounts:
+    - name: pass-only
+      mountPath: /etc/secrets
 
-  secret:
+=== STEP 3 - Apply it ===
 
-    secretName: multi-secret
+kubectl apply -f selective-secret-pod.yaml
 
-    items:
+=== STEP 4 - Prove only one file exists ===
 
-    - key: db_pass
+kubectl exec selective-secret-pod -- ls /etc/secrets
 
-      path: password.txt    # this is the filename in the pod
+Output: password.txt (only this — not db_user or api_key)
 
-**Q38: Create ClusterIP Service and resolve it by DNS from another pod.**
+kubectl exec selective-secret-pod -- cat /etc/secrets/password.txt
+
+Output: secret
+
+=== EXPLANATION ===
+
+The items section lets you pick specific keys and control the filename inside the pod.
+Only db_pass is mounted even though the secret has three keys.
+
+================================================================================
+
+Q38: Create ClusterIP Service and resolve it by DNS from another pod.
+
+=== STEP 1 - Expose the web deployment as ClusterIP ===
 
 kubectl expose deployment web --name=web-svc --port=80
 
-From another pod, test DNS resolution:
+=== STEP 2 - Verify service exists ===
+
+kubectl get service web-svc
+
+=== STEP 3 - Test DNS from inside the cluster ===
 
 kubectl run dns-test --rm -it --image=docker.io/library/busybox:latest -- sh
 
-# Inside the pod:
-
+Inside the pod run:
 nslookup web-svc.default.svc.cluster.local
-
 wget -qO- http://web-svc
 
-**Q39: Create NodePort Service and reach it.**
+=== EXPLANATION ===
+
+ClusterIP gives the service a stable internal IP only accessible inside the cluster.
+DNS format is: SERVICE-NAME.NAMESPACE.svc.cluster.local
+From the same namespace you can use just the short name: web-svc
+
+================================================================================
+
+Q39: Create NodePort Service and reach it.
+
+=== STEP 1 - Expose as NodePort ===
 
 kubectl expose deployment web --type=NodePort --port=80
 
-kubectl get service web   # note the NodePort (e.g. 30080)
-
-# On minikube:
-
-minikube service web --url
-
-# Or manually:
-
-curl $(minikube ip):30080
-
-**Q40: Create LoadBalancer Service. Explain why EXTERNAL-IP is pending on minikube.**
-
-kubectl expose deployment web --type=LoadBalancer --port=80
+=== STEP 2 - Get the NodePort number ===
 
 kubectl get service web
 
-**→ **On minikube, EXTERNAL-IP shows <pending> because LoadBalancer needs a cloud provider (AWS, GCP, Azure) to provision a real external IP address. Minikube runs locally and has no cloud provider.
+Note the NodePort number shown (e.g. 30080)
 
-Fix on minikube:
+=== STEP 3 - Reach it on minikube ===
+
+minikube service web --url
+
+Or manually:
+curl $(minikube ip):30080
+
+=== EXPLANATION ===
+
+NodePort exposes the service on a port (30000-32767) on every node's IP.
+Anyone who can reach the node IP can reach the service via that port.
+
+================================================================================
+
+Q40: Create LoadBalancer Service. Explain why EXTERNAL-IP is pending on minikube.
+
+=== STEP 1 - Expose as LoadBalancer ===
+
+kubectl expose deployment web --type=LoadBalancer --port=80
+
+=== STEP 2 - Check the service ===
+
+kubectl get service web
+
+You will see EXTERNAL-IP showing pending
+
+=== STEP 3 - Fix it on minikube ===
 
 minikube tunnel
 
-This creates a network tunnel and assigns a local IP to the service.
+Then run kubectl get service web again and EXTERNAL-IP will have an IP.
 
-**Q41: Create headless Service for StatefulSet. Show it returns per-pod A records.**
+=== EXPLANATION ===
 
-**→ **A regular service returns ONE IP (virtual IP). A headless service (clusterIP: None) returns the IP addresses of ALL individual pods directly. Clients can connect to a specific pod.
+On minikube EXTERNAL-IP shows pending because LoadBalancer needs a cloud provider
+(AWS, GCP, Azure) to provision a real external IP address.
+Minikube runs locally and has no cloud provider so it cannot assign one automatically.
+minikube tunnel creates a network tunnel that simulates this locally.
 
-# Check DNS from inside cluster:
+================================================================================
+
+Q41: Create headless Service for StatefulSet. Show it returns per-pod A records.
+
+=== STEP 1 - Verify headless service exists (from Q16) ===
+
+kubectl get service redis
+
+CLUSTER-IP should show None — that makes it headless.
+
+=== STEP 2 - Show endpoints (per-pod IPs) ===
+
+kubectl get endpoints redis
+
+=== STEP 3 - Test DNS returns per-pod records ===
 
 kubectl run dns-test --rm -it --image=docker.io/library/busybox:latest -- nslookup redis.default.svc.cluster.local
 
-Output: three A records — one for each pod's IP (redis-0, redis-1, redis-2)
+Output: three A records — one for each pod IP (redis-0, redis-1, redis-2)
 
-**Q42: Inspect Service Endpoints and explain how they're populated.**
+=== EXPLANATION ===
+
+A regular service returns ONE IP (virtual IP that load balances).
+A headless service (clusterIP: None) returns the IP addresses of ALL individual pods directly.
+This lets clients connect to a specific pod by name e.g. redis-0.redis.default.svc.cluster.local
+
+================================================================================
+
+Q42: Inspect Service Endpoints and explain how they are populated.
+
+=== STEP 1 - Get endpoints ===
 
 kubectl get endpoints web-svc
 
-**→ **Endpoints are populated automatically. Kubernetes watches for pods that match the Service's selector label. When a pod with the matching label is Running AND Ready, its IP:port is added to Endpoints. When a pod is deleted or fails its readiness probe, it's removed from Endpoints.
+=== STEP 2 - Show which pods match ===
 
-**Q43: Demonstrate cross-namespace access using FQDN. Show short name fails.**
+kubectl get pods --show-labels
+kubectl describe service web-svc
 
-From namespace 'test', accessing service in namespace 'production':
+=== EXPLANATION ===
 
-# Short name FAILS from different namespace:
+Endpoints are populated automatically by Kubernetes.
+Kubernetes watches for pods that match the Service selector label.
+When a pod with the matching label is Running AND passes its readiness probe,
+its IP:port is added to Endpoints.
+When a pod is deleted or fails its readiness probe it is removed from Endpoints.
 
-wget web-svc       # fails — only works in same namespace
+================================================================================
 
-# FQDN WORKS from any namespace:
+Q43: Demonstrate cross-namespace access using FQDN. Show short name fails.
 
-wget web-svc.production.svc.cluster.local    # works
+=== STEP 1 - Create a second namespace ===
 
-**Q44: Compare kubectl port-forward to a Service versus to a Pod.**
+kubectl create namespace test-ns
 
-Port-forward to a Pod:
+=== STEP 2 - Run a pod in the new namespace ===
 
-kubectl port-forward pod/web-abc123 8080:80
+kubectl run test-pod --rm -it --image=docker.io/library/busybox:latest -n test-ns -- sh
 
-**→ **Goes to that specific pod only. If that pod dies, the connection breaks. Use for: debugging one specific pod.
+=== STEP 3 - Inside the pod try short name (will fail) ===
 
-Port-forward to a Service:
+wget web-svc
+
+This fails — short name only works in the same namespace.
+
+=== STEP 4 - Try FQDN (will work) ===
+
+wget web-svc.default.svc.cluster.local
+
+This works from any namespace.
+
+=== EXPLANATION ===
+
+Short names only resolve in the same namespace.
+FQDN format works from anywhere: SERVICE.NAMESPACE.svc.cluster.local
+
+================================================================================
+
+Q44: Compare kubectl port-forward to a Service versus to a Pod.
+
+=== Port-forward to a Pod ===
+
+kubectl port-forward pod/web-556bc6bb8f-bk9lm 8080:80
+
+Then access: curl localhost:8080
+
+Goes to that specific pod only.
+If that pod dies the connection breaks.
+Use for: debugging one specific pod.
+
+=== Port-forward to a Service ===
 
 kubectl port-forward service/web-svc 8080:80
 
-**→ **Routes through the service, which load-balances. If a pod dies, traffic goes to another. Use for: testing your app through the service layer.
+Then access: curl localhost:8080
 
-**Q45: Explain the difference between a Service's port, targetPort, and nodePort.**
+Routes through the service which load-balances across all pods.
+If a pod dies traffic goes to another pod.
+Use for: testing your app through the service layer.
 
-- **the port clients use to connect to the Service (e.g. 80)**port:
+================================================================================
 
-- **the port on the POD/container where the app actually listens (e.g. 8080)**targetPort:
+Q45: Explain the difference between a Service port, targetPort, and nodePort.
 
-- **the port on the NODE's IP to reach the service from outside (e.g. 30080). Only for NodePort services.**nodePort:
+port:       the port clients use to connect to the Service (e.g. 80)
+targetPort: the port on the POD/container where the app actually listens (e.g. 8080)
+nodePort:   the port on the NODE IP to reach the service from outside (e.g. 30080) — only for NodePort services
 
-Example: client → Service port 80 → Pod targetPort 8080
+Example flow:
+client connects to Service port 80 → Service forwards to Pod targetPort 8080
 
-**Q46: Verify connectivity to ClusterIP Service from throwaway debug pod.**
+=== STEP 1 - See all three in action ===
+
+kubectl describe service web-svc
+
+Look for Port, TargetPort, NodePort fields.
+
+================================================================================
+
+Q46: Verify connectivity to ClusterIP Service from throwaway debug pod.
+
+=== STEP 1 - Run throwaway pod ===
 
 kubectl run tmp --rm -it --image=docker.io/library/busybox:latest -- sh
 
-# Inside the pod:
+=== STEP 2 - Inside the pod test connectivity ===
 
 wget -qO- http://web-svc
-
 nc -z web-svc 80 && echo 'connected'
 
-**Q47: Create two Deployments and one Service that load-balances across both by sharing a label.**
+=== EXPLANATION ===
+
+--rm deletes the pod automatically when you exit.
+This is a clean way to test internal cluster connectivity without leaving pods behind.
+
+================================================================================
+
+Q47: Create two Deployments and one Service that load-balances across both by sharing a label.
+
+=== STEP 1 - Create first deployment ===
 
 kubectl create deployment app-v1 --image=docker.io/library/nginx:1.25
 
-kubectl label deployment app-v1 app=myapp
+=== STEP 2 - Label its pods ===
 
 kubectl label pods -l app=app-v1 app=myapp --overwrite
 
+=== STEP 3 - Create second deployment ===
+
 kubectl create deployment app-v2 --image=docker.io/library/httpd:2.4
+
+=== STEP 4 - Label its pods ===
 
 kubectl label pods -l app=app-v2 app=myapp --overwrite
 
+=== STEP 5 - Create service targeting the shared label ===
+
 kubectl create service clusterip myapp-svc --tcp=80:80
 
-**→ **The service routes to all pods with label app=myapp — regardless of which deployment they belong to. Traffic is distributed across both.
+=== STEP 6 - Verify endpoints include pods from both deployments ===
 
-**Q48: Systematically diagnose why a pod can't reach a Service.**
+kubectl get endpoints myapp-svc
+
+=== EXPLANATION ===
+
+The service selector matches app=myapp.
+Both deployments have pods with that label.
+Traffic is distributed across pods from both deployments.
+
+================================================================================
+
+Q48: Systematically diagnose why a pod cannot reach a Service.
 
 Follow this order:
 
-- 1. DNS — can the pod resolve the service name?
+=== 1. DNS - can the pod resolve the service name? ===
 
-kubectl exec POD -- nslookup web-svc
+kubectl exec POD_NAME -- nslookup web-svc
 
-- 2. Endpoints — are there any pods registered to the service?
+=== 2. Endpoints - are there any pods registered to the service? ===
 
 kubectl get endpoints web-svc
 
-- 3. Selector labels — do pod labels match service selector?
+If ENDPOINTS shows none then no pods match the selector.
 
-kubectl describe service web-svc   # check Selector
+=== 3. Selector labels - do pod labels match service selector? ===
 
+kubectl describe service web-svc
 kubectl get pods --show-labels
 
-- 4. Readiness — are pods passing readiness probes?
+=== 4. Readiness - are pods passing readiness probes? ===
 
-kubectl describe pod POD_NAME   # check Ready status
+kubectl describe pod POD_NAME
 
-- 5. Port — is the correct port configured?
+=== 5. Port - is the correct port configured? ===
 
-kubectl describe service web-svc   # check Port and TargetPort
+kubectl describe service web-svc
 
-**Q49: Expose a service with NodePort and verify it works.**
+Check Port and TargetPort fields.
+
+================================================================================
+
+Q49: Expose a service with NodePort and verify it works.
+
+=== STEP 1 - Expose as NodePort ===
 
 kubectl expose deployment web --type=NodePort --port=80 --name=web-nodeport
 
+=== STEP 2 - Get the NodePort automatically ===
+
 NODE_PORT=$(kubectl get svc web-nodeport -o jsonpath='{.spec.ports[0].nodePort}')
+
+=== STEP 3 - Curl it ===
 
 curl http://$(minikube ip):$NODE_PORT
 
-**Q50: Add HTTP livenessProbe hitting / on port 80 to nginx Deployment.**
+================================================================================
 
-kubectl patch deployment web --patch '
+Q50: Add HTTP livenessProbe hitting / on port 80 to nginx Deployment.
 
-{"spec":{"template":{"spec":{"containers":[{"name":"nginx",
+=== STEP 1 - Add liveness probe ===
 
-"livenessProbe":{"httpGet":{"path":"/","port":80},
+kubectl patch deployment web --patch '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","livenessProbe":{"httpGet":{"path":"/","port":80},"initialDelaySeconds":5,"periodSeconds":10}}]}}}}'
 
-"initialDelaySeconds":5,"periodSeconds":10}}]}}}}'
-
-Verify:
+=== STEP 2 - Verify it was added ===
 
 kubectl describe pod $(kubectl get pods -l app=web -o name | head -1)
 
-Look for Liveness section in the output
+Look for the Liveness section in the output.
 
-**Q51: Add tcpSocket readiness probe to redis container on port 6379.**
+=== EXPLANATION ===
 
-kubectl patch deployment redis --patch '
+livenessProbe checks if the app is still alive.
+If it fails failureThreshold times Kubernetes restarts the container.
+initialDelaySeconds gives the app time to start before probing begins.
+periodSeconds is how often the probe runs.
 
-{"spec":{"template":{"spec":{"containers":[{"name":"redis",
+================================================================================
 
-"readinessProbe":{"tcpSocket":{"port":6379},
+Q51: Add tcpSocket readiness probe to redis container on port 6379.
 
-"initialDelaySeconds":5,"periodSeconds":5}}]}}}}'
+=== STEP 1 - Add readiness probe ===
 
-kubectl describe pod -l app=redis   # verify Readiness section
+kubectl patch statefulset redis --patch '{"spec":{"template":{"spec":{"containers":[{"name":"redis","readinessProbe":{"tcpSocket":{"port":6379},"initialDelaySeconds":5,"periodSeconds":5}}]}}}}'
 
-**Q52: Configure startup probe for ~2-minute boot time.**
+=== STEP 2 - Verify it was added ===
 
-**→ **For 2 minutes: failureThreshold * periodSeconds must be >= 120. Example: 24 failures × 5 seconds = 120 seconds.
+kubectl describe pod redis-0
 
-startupProbe:
+Look for the Readiness section in the output.
 
-  httpGet:
+=== EXPLANATION ===
 
-    path: /health
+readinessProbe checks if the app is ready to receive traffic.
+If it fails the pod is removed from Service endpoints — no traffic goes to it.
+tcpSocket probe just tries to open a connection on that port — no HTTP needed.
 
-    port: 8080
+================================================================================
 
-  failureThreshold: 24
+Q52: Configure startup probe for approximately 2-minute boot time.
 
-  periodSeconds: 5
+=== STEP 1 - Create pod YAML with startup probe ===
 
-✅ Startup probe buys time for slow-starting apps. Once it passes, liveness probe takes over. Without it, liveness might kill a slow app that's still starting.
+nano startup-probe-pod.yaml
 
-**Q53: Explain the default behavior when no probes are defined at all.**
+apiVersion: v1
+kind: Pod
+metadata:
+  name: startup-probe-pod
+spec:
+  containers:
+  - name: app
+    image: docker.io/library/busybox:latest
+    command: ['sleep', '3600']
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      failureThreshold: 24
+      periodSeconds: 5
 
-**→ **Without probes, Kubernetes assumes the container is ready and healthy as soon as it starts. It never checks if the app is actually working. If the app crashes, Kubernetes restarts it (it detects process exit). But if the app is running but broken (e.g. stuck, not serving requests), Kubernetes has no way to know — traffic keeps going to the broken pod.
+=== EXPLANATION ===
+
+For 2 minutes: failureThreshold x periodSeconds must be >= 120
+24 failures x 5 seconds = 120 seconds = 2 minutes
+
+Startup probe buys time for slow-starting apps.
+Once it passes liveness probe takes over.
+Without it liveness might kill a slow app that is still starting up.
+
+================================================================================
+
+Q53: Explain the default behavior when no probes are defined at all.
+
+=== No commands needed - this is theory only ===
+
+=== EXPLANATION ===
+
+Without probes Kubernetes assumes the container is ready and healthy as soon as it starts.
+It never checks if the app is actually working.
+
+If the app crashes: Kubernetes restarts it because it detects the process exited.
+
+If the app is running but broken (stuck, not serving requests, deadlocked):
+Kubernetes has NO way to know — traffic keeps going to the broken pod forever.
+
+This is why probes matter:
+- startupProbe: knows when app finished starting
+- readinessProbe: knows when app is ready for traffic
+- livenessProbe: knows when app is broken and needs restart
+
+
 
 # **LO5 — Solve Problems with Application Shipping Using Containers**
 
