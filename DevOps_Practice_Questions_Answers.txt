@@ -992,16 +992,14 @@ kubectl describe secret tls-files
 **Answer:** A `kubernetes.io/tls` secret holds a `tls.crt` and `tls.key`. It is consumed by Ingress controllers and OpenShift Routes to terminate HTTPS — the ingress/route reads the cert and key to handle TLS encryption on behalf of your app. Its type is `kubernetes.io/tls` instead of `Opaque`.
 
 ```bash
-# Run this to create dummy cert and key:
-echo "fake-cert" > cert.pem
-echo "fake-key" > key.pem
+# Run this to generate a real self-signed cert + key (valid PEM):
+openssl req -x509 -nodes -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -subj "/CN=example.com"
 
-# Run this to create the TLS-typed secret:
+# Run this to create the TLS secret (now it validates fine):
 kubectl create secret tls my-tls-secret --cert=cert.pem --key=key.pem
 
-# Run this to verify it (Type: kubernetes.io/tls):
+# Run this to verify it (Type: kubernetes.io/tls, Data: tls.crt + tls.key):
 kubectl describe secret my-tls-secret
-```
 
 ---
 
