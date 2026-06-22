@@ -1,3 +1,6 @@
+#Run this to enable auto-completion
+source <(kubectl completion bash)
+
 most likely commands they'll ask you to run inside a Job or CronJob:
 Simple output commands:
 bashdate                          # print current date/time
