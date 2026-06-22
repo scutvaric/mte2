@@ -946,7 +946,9 @@ kubectl get service web        # now has an IP
 ```bash
 kubectl get service redis        # CLUSTER-IP None
 kubectl get endpoints redis
-kubectl run dns-test --rm -it --image=docker.io/library/busybox:latest -- nslookup redis.default.svc.cluster.local
+kubectl run dns-test --restart=Never --image=docker.io/library/busybox:latest -- nslookup redis.default.svc.cluster.local
+kubectl logs dns-test
+kubectl delete pod dns-test
 ```
 
 **Explanation:** A headless service (clusterIP: None) has no virtual IP; DNS instead returns the IP of every individual pod, so clients can target a specific pod like redis-0.redis.default.svc.cluster.local.
