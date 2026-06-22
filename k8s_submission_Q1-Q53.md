@@ -1076,7 +1076,7 @@ curl http://$(minikube ip):$NODE_PORT
 
 ```bash
 kubectl patch deployment web --patch '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","livenessProbe":{"httpGet":{"path":"/","port":80},"initialDelaySeconds":5,"periodSeconds":10}}]}}}}'
-kubectl describe pod $(kubectl get pods -l app=web -o name | head -1)
+kubectl describe $(kubectl get pods -l app=web -o name | head -1)
 ```
 
 **Explanation:** A livenessProbe checks the app is still alive; if it fails repeatedly Kubernetes restarts the container. initialDelaySeconds delays the first check; periodSeconds sets the interval.
